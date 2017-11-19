@@ -1,0 +1,4 @@
+package: github.com/davehughes/lparse
+import:
+- package: github.com/pkg/errors
+  version: ^0.8.0

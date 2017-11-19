@@ -1,0 +1,140 @@
+{
+// Go code goes here...
+
+}
+
+
+Input <- forms:Form* EOF {
+    return forms, nil
+}
+
+Form <- _ form:( LineComment / List / Lambda / Vector / Set / Map / 
+            QuotedForm / Numeric / Symbol / Keyword / String
+            ) _ {
+    fmt.Printf("Form: %v\n", form) 
+    return string(c.text), nil
+}
+
+EOF = !.
+EOL <- LineComment? ( "\r\n" / "\n\r" / "\r" / "\n" / EOF)
+_ "whitespace" <- [ \n\t\r,]*
+
+LineComment <- _? ';' comment:[^\r\n]* {
+    return &Comment{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        Value: fmt.Sprint(comment),
+        }, nil
+    /* return showComponent("commented-line", c.text) */
+}
+
+List <- '(' forms:Form* ')' {
+    return &Collection{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        Type: CollectionList,
+        Items: forms.([]interface{}),
+        }, nil
+}
+ 
+Vector <- '[' forms:Form* ']' {
+    return &Collection{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        Type: CollectionVector,
+        Items: forms.([]interface{}),
+        }, nil
+}
+
+Map <- '{' forms:Form* '}' {
+    return &Collection{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        Type: CollectionMap,
+        Items: forms.([]interface{}),
+        }, nil
+}
+
+Set <- '#' '{' forms:Form '}' {
+    return &Collection{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        Type: CollectionSet,
+        Items: forms.([]interface{}),
+        }, nil
+}
+
+Lambda <- '#' '(' forms:Form* ')' {
+    return &Collection{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        Type: CollectionLambda,
+        Items: forms.([]interface{}),
+    }, nil
+}
+
+Keyword <- ( NamespacedKeyword / BareKeyword)
+
+NamespacedKeyword <- ':' ':' sym:Symbol {
+    return &Keyword{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        Name: fmt.Sprint(sym),
+        Namespace: "TODO: namespaced",
+    }, nil
+}
+
+BareKeyword <- ':' sym:Symbol {
+    return &Keyword{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        Name: fmt.Sprint(sym),
+    }, nil
+}
+
+Symbol <- [a-z0-9-+*?!&^%#?<>%/\\]i+ {
+    return &Symbol{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        Name: string(c.text),
+    }, nil
+}
+
+QuotedForm <- ( "'" ) form:Form {
+    return &QuotedForm{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        Form: form,
+    }, nil
+}
+
+String <- '"' value:[^"]* '"' {
+    return &String{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        Value: string(c.text),
+    }, nil
+}
+
+Numeric <- ( SciNot / Float /Integer )
+
+SciNotSuffix <- [eE] Integer
+
+SciNot <- coefficient:( Float / Integer ) exponent:SciNotSuffix {
+    fl := fmt.Sprintf("(sci-not %s :exponent %s)", coefficient, exponent)
+    fmt.Println(fl)
+    return fl, nil
+}
+
+Float <- '-'? [0-9]+ '.' [0-9]+ {
+    value, err := strconv.ParseFloat(string(c.text), 64)
+    if err != nil {
+        panic(err)
+    }
+    return &Float{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        ParsedValue: string(c.text),
+        Value: value,
+    }, nil
+}
+
+Integer <- '-'? [0-9]+ {
+    value, err := strconv.ParseInt(string(c.text), 0, 64)
+    if err != nil {
+        panic(err)
+    }
+    return &Integer{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        ParsedValue: string(c.text),
+        Value: value,
+    }, nil
+}
