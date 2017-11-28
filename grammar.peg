@@ -9,10 +9,10 @@ Input <- forms:Form* EOF {
 }
 
 Form <- _ form:( LineComment / List / Lambda / Vector / Set / Map / 
-            QuotedForm / Numeric / Symbol / Keyword / String
+            QuotedForm / AtomDeref / Numeric / Symbol / Keyword / String
             ) _ {
-    fmt.Printf("Form: %v\n", form) 
-    return string(c.text), nil
+    // fmt.Printf("Form: %v\n", form) 
+    return form, nil
 }
 
 EOF = !.
@@ -24,46 +24,56 @@ LineComment <- _? ';' comment:[^\r\n]* {
         Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
         Value: fmt.Sprint(comment),
         }, nil
-    /* return showComponent("commented-line", c.text) */
 }
 
 List <- '(' forms:Form* ')' {
-    return &Collection{
+    return &List{
         Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
-        Type: CollectionList,
-        Items: forms.([]interface{}),
+        Forms: forms.([]interface{}),
         }, nil
 }
  
 Vector <- '[' forms:Form* ']' {
-    return &Collection{
+    return &Vector{
         Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
-        Type: CollectionVector,
-        Items: forms.([]interface{}),
+        Forms: forms.([]interface{}),
         }, nil
 }
 
 Map <- '{' forms:Form* '}' {
-    return &Collection{
+    numForms := len(forms.([]interface{}))
+    if numForms % 2 != 0 {
+        return nil, ErrOddNumberOfMapForms
+    }
+    return &Map{
         Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
-        Type: CollectionMap,
-        Items: forms.([]interface{}),
+        Forms: forms.([]interface{}),
         }, nil
 }
 
-Set <- '#' '{' forms:Form '}' {
-    return &Collection{
+Set <- '#' '{' forms:Form* '}' {
+    return &Set{
         Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
-        Type: CollectionSet,
-        Items: forms.([]interface{}),
+        Forms: forms.([]interface{}),
         }, nil
 }
 
 Lambda <- '#' '(' forms:Form* ')' {
-    return &Collection{
+    return &Lambda{
         Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
-        Type: CollectionLambda,
-        Items: forms.([]interface{}),
+        Forms: forms.([]interface{}),
+    }, nil
+}
+
+AtomDeref <- "@" form:Form {
+    return &List{
+        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
+        Forms: []interface{}{
+            &Symbol{
+                Name: "deref",
+            },
+            form,
+        },
     }, nil
 }
 
@@ -72,7 +82,7 @@ Keyword <- ( NamespacedKeyword / BareKeyword)
 NamespacedKeyword <- ':' ':' sym:Symbol {
     return &Keyword{
         Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
-        Name: fmt.Sprint(sym),
+        Name: (sym.(*Symbol)).Name,
         Namespace: "TODO: namespaced",
     }, nil
 }
@@ -80,21 +90,36 @@ NamespacedKeyword <- ':' ':' sym:Symbol {
 BareKeyword <- ':' sym:Symbol {
     return &Keyword{
         Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
-        Name: fmt.Sprint(sym),
+        Name: (sym.(*Symbol)).Name,
     }, nil
 }
 
 Symbol <- [a-z0-9-+*?!&^%#?<>%/\\]i+ {
-    return &Symbol{
-        Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
-        Name: string(c.text),
-    }, nil
+    pos := Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset}
+    switch string(c.text) {
+    case "nil":
+        return &Nil{Position: pos}, nil
+    case "true":
+        return &True{Position: pos}, nil
+    case "false":
+        return &False{Position: pos}, nil
+    default:
+        return &Symbol{
+            Position: pos,
+            Name: string(c.text),
+        }, nil
+    }
 }
 
 QuotedForm <- ( "'" ) form:Form {
-    return &QuotedForm{
+    return &List{
         Position: Position{Line: c.pos.line, Column: c.pos.col, Offset: c.pos.offset},
-        Form: form,
+        Forms: []interface{}{
+            &Symbol{
+                Name: "quote",
+            },
+            form,
+        },
     }, nil
 }
 

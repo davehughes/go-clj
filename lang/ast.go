@@ -14,9 +14,17 @@ type Keyword struct {
 	Namespace string
 }
 
+func (s Keyword) String() string {
+	return fmt.Sprintf("(keyword %v)", s.Name)
+}
+
 type Symbol struct {
 	Position
 	Name string
+}
+
+func (s Symbol) String() string {
+	return fmt.Sprintf("(symbol %v)", s.Name)
 }
 
 type String struct {
@@ -39,21 +47,16 @@ type Position struct {
 	Offset int
 }
 
-type CollectionType int
-
-const (
-	CollectionList CollectionType = iota
-	CollectionVector
-	CollectionMap
-	CollectionSet
-	CollectionLambda
-)
-
-type Collection struct {
+type Container struct {
 	Position
-	Type  CollectionType
-	Items []interface{}
+	Forms []interface{}
 }
+
+type List Container
+type Vector Container
+type Map Container
+type Set Container
+type Lambda Container
 
 type Integer struct {
 	Position
@@ -67,7 +70,10 @@ type Float struct {
 	Value       float64
 }
 
-type QuotedForm struct {
+type ReservedWord struct {
 	Position
-	Form interface{}
 }
+
+type Nil ReservedWord
+type True ReservedWord
+type False ReservedWord

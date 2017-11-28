@@ -1,6 +1,8 @@
-hash: e215ffbfca41fb3839ee93b5ff0d188f1b03949db9a296fcd969f69b5364482f
-updated: 2017-11-19T11:33:19.421770904-08:00
+hash: 689f6f0da1b0c45589ed918f3b0a7ffae729e2acd3f1af7d250fdc8d97a0c4ce
+updated: 2017-11-19T11:52:23.726366757-08:00
 imports:
 - name: github.com/pkg/errors
   version: 645ef00459ed84a119197bfb8d8205042c6df63d
+- name: github.com/stretchr/testify
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
 testImports: []

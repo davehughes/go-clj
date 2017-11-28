@@ -1,5 +1,6 @@
 .PHONY: bootstrap build-parser watch
 
+GRAMMARFILE=grammar.peg
 PARSERFILE=lang/parser.go
 SAMPLEFILE=samples/sample1.clj
 
@@ -9,12 +10,15 @@ bootstrap:
 	go get -u github.com/cespare/reflex
 
 watch:
-	reflex --inverse-glob=$(PARSERFILE) -- $(MAKE) test-parser
+	reflex --inverse-glob=$(PARSERFILE) -- $(MAKE) test
 
-build-parser:
-	echo "package lang" > $(PARSERFILE)
-	pigeon <grammar.peg | gofmt >>$(PARSERFILE)
+$(PARSERFILE): $(GRAMMARFILE)
+	@echo "== Rebuilding parser"
+	echo "package lang" > $@
+	pigeon <$< | gofmt >>$@
 
-test-parser: build-parser
-	go run main.go $(SAMPLEFILE)
+build-parser: $(PARSERFILE)
 
+test: $(PARSERFILE)
+	@echo "== Running unit tests"
+	go test ./...
