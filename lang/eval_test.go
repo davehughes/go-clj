@@ -507,15 +507,39 @@ func TestArgumentBinding(t *testing.T) {
 	}
 }
 
+func testEqual(x, y interface{}) bool {
+	switch t := x.(type) {
+	case *Symbol:
+		ysym, ok := y.(*Symbol)
+		return ok && ysym.Name == t.Name
+	case *Keyword:
+		ysym, ok := y.(*Keyword)
+		return ok && ysym.Name == t.Name && ysym.Namespace == t.Namespace
+	case *String:
+		ysym, ok := y.(*String)
+		return ok && ysym.Value == t.Value
+	case *Integer:
+		ysym, ok := y.(*Integer)
+		return ok && ysym.Value == t.Value
+	case *Nil:
+		_, ok := y.(*Nil)
+		return ok
+	default:
+		return false
+	}
+}
+
+func assertEvals(t *testing.T, input string, result interface{}) bool {
+	return assertEvalsWithContext(t, input, NewBaseEvaluationContext(), result)
+}
+
+func assertEvalsWithContext(t *testing.T, input string, ctx *EvaluationContext, result interface{}) bool {
+	evalResult, err := Eval(MustReadForm(input), ctx)
+	require.NoError(t, err)
+	return assert.True(t, testEqual(result, evalResult))
+}
+
 func TestFnDefinition(t *testing.T) {
-	fnInput := "((fn [x y] y) 1 2)"
-	ctx := NewBaseEvaluationContext()
-
-	form := MustReadForm(fnInput)
-	result, err := Eval(form, ctx)
-	assert.NoError(t, err)
-
-	resultInt, ok := result.(*Integer)
-	assert.True(t, ok)
-	assert.Equal(t, int64(2), resultInt.Value)
+	assertEvals(t, "((fn [x y] y) 1 2)", &Integer{Value: 2})
+	assertEvals(t, "(let [f (fn [x] x)] (f :lmao))", &Keyword{Name: "lmao"})
 }
